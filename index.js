@@ -4,8 +4,11 @@ const app = express();
 const net = require("net");
 const crypto = require("crypto");
 const admin = require("firebase-admin");
+const dotenv = require("dotenv");
 
-const serviceAccount = require("./tcp-protocol-98624-firebase-adminsdk-1xmx5-4aa2bcc083.json");
+dotenv.config();
+
+const serviceAccount = require(process.env.FIREBASE_KEY_PATH);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
