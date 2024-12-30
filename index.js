@@ -34,7 +34,7 @@ app.get("/", (req, res) => {
 // });
 
 // Start Express HTTP Server
-const httpPort = 3000;
+const httpPort = 3030;
 app.listen(httpPort, () => {
   console.log(`HTTP server running at http://localhost:${httpPort}`);
 });
