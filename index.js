@@ -37,13 +37,13 @@ app.get("/", (req, res) => {
 // });
 
 // Start Express HTTP Server
-const httpPort = 3030;
+const httpPort = process.env.HTTP_PORT || 3030;
 app.listen(httpPort, () => {
   console.log(`HTTP server running at http://localhost:${httpPort}`);
 });
 
 // TCP Server
-const tcpPort = 8000;
+const tcpPort = process.env.TCP_PORT || 8000;
 const server = net.createServer();
 
 // const dataStorage = new Map();
