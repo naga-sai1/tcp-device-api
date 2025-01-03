@@ -173,7 +173,7 @@ socket.on("data", async (data) => {
         if (!deviceQuery.empty) {
           console.log("Device already exists.");
           const existingDevice = deviceQuery.docs[0].data();
-          const response = `DR:${existingDevice.uniqueId}:${existingDevice.timestamp}:${existingDevice.serialNumber}\r\n`;
+          const response = `DR:${existingDevice.uniqueId}:${existingDevice.serialNumber}:${existingDevice.timestamp}\r\n`;
           socket.write(response);
           return; // Exit to avoid further processing
         }
