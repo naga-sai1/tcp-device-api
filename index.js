@@ -151,8 +151,11 @@ socket.on("data", async (data) => {
         "Parsed Data -> macId: %s, deviceType: %s, noOfSwitches: %s, versionOfSoftware: %s, versionOfHardware: %s, defaultDeviceId: %s",
         macId, deviceType, noOfSwitches, versionOfSoftware, versionOfHardware, defaultDeviceId
       );
-  
-      const uniqueId = db.collection("device").doc().id;
+      
+
+      // generate a unique id for the device limit must be 6 characters
+      const uniqueId = crypto.randomUUID().substring(0, 6);
+
       const timestamp = Date.now();
   
       try {
@@ -180,7 +183,7 @@ socket.on("data", async (data) => {
           const counterRef = db.collection("device").doc("serialNumberCounter");
           const counterDoc = await transaction.get(counterRef);
   
-          let counterValue = 0;
+          let counterValue = 10000000;
           if (counterDoc.exists) {
             counterValue = counterDoc.data().counter;
           }
@@ -192,7 +195,7 @@ socket.on("data", async (data) => {
           transaction.set(counterRef, { counter: counterValue });
   
           // Return the padded serial number
-          return counterValue.toString().padStart(5, "0");
+          return counterValue.toString();
         });
   
         console.log("serialNumber: %s", serialNumber);
@@ -206,13 +209,13 @@ socket.on("data", async (data) => {
           versionOfHardware,
           defaultDeviceId,
           timestamp,
-          serialNumber: `INV${serialNumber}`,
+          serialNumber,
           uniqueId,
         });
   
         console.log("Stored data for ID: %s in Firestore", uniqueId);
   
-        const response = `DR:${uniqueId}:${timestamp}:INV${serialNumber}\r\n`;
+        const response = `DR:${uniqueId}:${serialNumber}:${timestamp}\r\n`;
         socket.write(response);
   
       } catch (error) {
