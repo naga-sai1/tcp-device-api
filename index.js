@@ -56,91 +56,27 @@ app.listen(httpPort, () => {
 const tcpPort = process.env.TCP_PORT || 8000;
 const server = net.createServer();
 
-// const dataStorage = new Map();
-let serialNumberCounter = 0;
+// Store connected clients
+const connectedClients = new Map();
+
+// Function to send message to a specific client
+function sendMessageToClient(targetAddress, message) {
+  const client = connectedClients.get(targetAddress);
+  if (client) {
+    client.write(message + '\r\n');
+    console.log(`Message sent to ${targetAddress}: ${message}`);
+    return true;
+  }
+  console.log(`Client ${targetAddress} not found or not connected`);
+  return false;
+}
 
 server.on("connection", (socket) => {
   const remoteAddress = socket.remoteAddress + ":" + socket.remotePort;
   console.log("New client connection from %s", remoteAddress);
-
-  //   socket.on("data", async (data) => {
-  //     const receivedData = data.toString();
-  //     console.log("Data received: %s", receivedData);
-
-  //     const sanitizedData = receivedData.replace(/\\r\\n$/, "\r\n");
-  //     console.log("Sanitized data: %s", sanitizedData);
-
-  //     const match = sanitizedData.match(
-  //       /^dr:([^:]+):([^:]+):([^:]+):([^:]+):([^:]+):([^:]+)\r\n$/i
-  //     );
-
-  //     if (match) {
-  //       const [_, macId, deviceType, noOfSwitches, versionOfSoftware, versionOfHardware, defaultDeviceId] = match;
-
-  //       console.log(
-  //         "Parsed Data -> macId: %s, deviceType: %s, noOfSwitches: %s, versionOfSoftware: %s, versionOfHardware: %s, defaultDeviceId: %s",
-  //         macId, deviceType, noOfSwitches, versionOfSoftware, versionOfHardware, defaultDeviceId
-  //       );
-
-  //       const uniqueId = db.collection("device").doc().id;
-  //       const timestamp = Date.now();
-
-  //       try {
-  //         // Transaction to fetch and increment the serial number
-  //         const serialNumber = await db.runTransaction(async (transaction) => {
-  //           const counterRef = db.collection("device").doc("serialNumberCounter");
-  //           const counterDoc = await transaction.get(counterRef);
-
-  //           let counterValue = 0;
-
-  //           if (counterDoc.exists) {
-  //             counterValue = counterDoc.data().counter;
-  //           }
-
-  //           // Increment the counter
-  //           counterValue++;
-
-  //           // Update the counter in Firestore
-  //           transaction.set(counterRef, { counter: counterValue });
-
-  //           // Return the padded serial number
-  //           return counterValue.toString().padStart(5, "0");
-  //         });
-
-  //         console.log("serialNumber: %s", serialNumber);
-
-  //         // check if the macId & deviceType & noOfSwitches & versionOfSoftware & versionOfHardware & defaultDeviceId is already in the database then return the serial number, uniqueId, timestamp
-  //         const device = await db.collection("device").where("macId", "==", macId).where("deviceType", "==", deviceType).where("noOfSwitches", "==", noOfSwitches).where("versionOfSoftware", "==", versionOfSoftware).where("versionOfHardware", "==", versionOfHardware).where("defaultDeviceId", "==", defaultDeviceId).get();
-  //         if (device.exists) {
-  //           socket.write(`DR:${uniqueId}:${timestamp}:INV${serialNumber}\r\n`);
-  //         }else{
-  //           // Store data in Firestore
-  //           await db.collection("device").doc(uniqueId).set({
-  //             macId,
-  //             deviceType,
-  //             noOfSwitches,
-  //             versionOfSoftware,
-  //             versionOfHardware,
-  //             defaultDeviceId,
-  //             timestamp,
-  //             serialNumber: `INV${serialNumber}`,
-  //             uniqueId,
-  //           });
-  //         }
-
-  //         console.log("Stored data for ID: %s in Firestore", uniqueId);
-
-  //         const response = `DR:${uniqueId}:${timestamp}:INV${serialNumber}\r\n`;
-  //         socket.write(response);
-  //       } catch (error) {
-  //         console.error("Error in transaction or storing data: ", error);
-  //         socket.write("ERROR:DB_WRITE_FAILED\r\n");
-  //       }
-  //     } else {
-  //       console.error("Invalid data format: %s", receivedData);
-  //       socket.write("ERROR:INVALID_FORMAT\r\n");
-  //     }
-  //   });
+  
+  // Store the connected client
+  connectedClients.set(remoteAddress, socket);
 
   socket.on("data", async (data) => {
     const receivedData = data.toString();
@@ -252,12 +188,40 @@ server.on("connection", (socket) => {
 
   socket.once("close", () => {
     console.log("Connection from %s closed", remoteAddress);
+    // Remove client from connected clients
+    connectedClients.delete(remoteAddress);
   });
 
   socket.on("error", (err) => {
     console.log("Connection error with %s: %s", remoteAddress, err.message);
   });
 });
+
+// Add new endpoint to send message to a specific client
+app.post("/send-message", (req, res) => {
+  const { targetAddress, message } = req.body;
+  
+  if (!targetAddress || !message) {
+    return res.status(400).json({ error: "Target address and message are required" });
+  }
+
+  const sent = sendMessageToClient(targetAddress, message);
+  if (sent) {
+    res.json({ success: true, message: "Message sent successfully" });
+  } else {
+    res.status(404).json({ success: false, message: "Client not found or disconnected" });
+  }
+});
+
+// Add endpoint to get all connected clients
+app.get("/connected-clients", (req, res) => {
+  const clients = Array.from(connectedClients.keys());
+  res.json({ 
+    connectedClients: clients,
+    count: clients.length 
+  });
+});
+
 
 server.listen(tcpPort, () => {
   console.log(`TCP server listening on port ${tcpPort}`);
